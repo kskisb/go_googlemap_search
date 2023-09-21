@@ -18,15 +18,11 @@ import (
 
 func main() {
 	// ハンドラの登録
-	http.HandleFunc("/", helloHandler)
+	http.HandleFunc("/", mainHandler)
 	http.HandleFunc("/callback", lineHandler)
-
-	fmt.Println("http://localhost:8080 で起動中...")
-	// HTTPサーバを起動
-	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-func helloHandler(w http.ResponseWriter, r *http.Request) {
+func mainHandler(w http.ResponseWriter, r *http.Request) {
 	msg := "Hello World!!!!"
 	fmt.Fprintf(w, msg)
 }
@@ -58,17 +54,16 @@ func lineHandler(w http.ResponseWriter, r *http.Request) {
 	for _, event := range events {
 		// イベントがメッセージの受信だった場合
 		if event.Type == linebot.EventTypeMessage {
-			switch message := event.Message.(type) {
-			// メッセージがテキスト形式の場合
-			case *linebot.TextMessage:
-				replyMessage := message.Text
+			switch event.Message.(type) {
+			// メッセージが位置情報の場合
+			case *linebot.LocationMessage:
+				sendRestoInfo(bot, event)
+			default:
+				replyMessage := "左下の＋ボタンからレストランを検索したい場所の位置情報を送信してください。"
 				_, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do()
 				if err != nil {
 					log.Print(err)
 				}
-			// メッセージが位置情報の場合
-			case *linebot.LocationMessage:
-				sendRestoInfo(bot, event)
 			}
 		}
 	}
