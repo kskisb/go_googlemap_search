@@ -34,6 +34,9 @@ func main() {
 	// ハンドラの登録
 	http.HandleFunc("/", mainHandler)
 	http.HandleFunc("/answer", lineHandler)
+
+	// HTTPサーバを起動
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func mainHandler(w http.ResponseWriter, r *http.Request) {
