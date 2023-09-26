@@ -16,18 +16,28 @@ import (
 	"github.com/line/line-bot-sdk-go/v7/linebot"
 )
 
+// response APIレスポンス
+type response struct {
+	Results []shop `json:"results"`
+}
+
+// shop レストラン一覧
+type shop struct {
+	Name             string  `json:"name"`
+	Address          string  `json:"vicinity"`
+	URLS             string  `json:"place_id"`
+	Rating           float64 `json:"rating"`
+	UserRatingsTotal float64 `json:"user_ratings_total"`
+}
+
 func main() {
 	// ハンドラの登録
 	http.HandleFunc("/", mainHandler)
-	http.HandleFunc("/callback", lineHandler)
-
-	fmt.Println("http://localhost:8080 で起動中...")
-	// HTTPサーバを起動
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	http.HandleFunc("/answer", lineHandler)
 }
 
 func mainHandler(w http.ResponseWriter, r *http.Request) {
-	msg := "Hello World!!!!"
+	msg := "Service is running."
 	fmt.Fprintf(w, msg)
 }
 
@@ -37,7 +47,7 @@ func lineHandler(w http.ResponseWriter, r *http.Request) {
 		log.Fatal("Error loading .env file")
 	}
 
-	// BOTを初期化
+	// Botを初期化
 	secret := os.Getenv("LINE_CHANNEL_SECRET")
 	token := os.Getenv("LINE_CHANNEL_TOKEN")
 	bot, err := linebot.New(secret, token)
@@ -58,17 +68,17 @@ func lineHandler(w http.ResponseWriter, r *http.Request) {
 	for _, event := range events {
 		// イベントがメッセージの受信だった場合
 		if event.Type == linebot.EventTypeMessage {
-			switch message := event.Message.(type) {
-			// メッセージがテキスト形式の場合
-			case *linebot.TextMessage:
-				replyMessage := message.Text
+			switch event.Message.(type) {
+			// メッセージが位置情報の場合
+			case *linebot.LocationMessage:
+				sendRestoInfo(bot, event)
+			// それ以外の場合
+			default:
+				replyMessage := "左側の＋ボタンからレストランを検索したい場所の位置情報を送信してください。"
 				_, err = bot.ReplyMessage(event.ReplyToken, linebot.NewTextMessage(replyMessage)).Do()
 				if err != nil {
 					log.Print(err)
 				}
-			// メッセージが位置情報の場合
-			case *linebot.LocationMessage:
-				sendRestoInfo(bot, event)
 			}
 		}
 	}
@@ -78,6 +88,7 @@ func lineHandler(w http.ResponseWriter, r *http.Request) {
 func sendRestoInfo(bot *linebot.Client, e *linebot.Event) {
 	msg := e.Message.(*linebot.LocationMessage)
 
+	// 座標を取得
 	lat := strconv.FormatFloat(msg.Latitude, 'f', 2, 64)
 	lng := strconv.FormatFloat(msg.Longitude, 'f', 2, 64)
 
@@ -91,20 +102,6 @@ func sendRestoInfo(bot *linebot.Client, e *linebot.Event) {
 	if _, err := bot.ReplyMessage(e.ReplyToken, res).Do(); err != nil {
 		log.Print(err)
 	}
-}
-
-// response APIレスポンス
-type response struct {
-	Results []shop `json:"results"`
-}
-
-// shop レストラン一覧
-type shop struct {
-	Name             string  `json:"name"`
-	Address          string  `json:"vicinity"`
-	URLS             string  `json:"place_id"`
-	Rating           float64 `json:"rating"`
-	UserRatingsTotal float64 `json:"user_ratings_total"`
 }
 
 // Places API で Nearby Search から取得した place_id を Place Details で URL に変換
